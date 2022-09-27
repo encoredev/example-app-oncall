@@ -3,7 +3,6 @@ package schedules
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"encore.app/users"
@@ -73,18 +72,20 @@ func ScheduledNow(ctx context.Context) (*Schedule, error) {
 
 //encore:api public method=GET path=/scheduled/:timestamp
 func ScheduledAtTimestamp(ctx context.Context, timestamp string) (*Schedule, error) {
+	eb := errs.B().Meta("timestamp", timestamp)
 	parsedtime, err := time.Parse(time.RFC3339, timestamp)
 	if err != nil {
-		return nil, fmt.Errorf("timestamp is not in a valid format")
+		return nil, eb.Code(errs.InvalidArgument).Msg("timestamp is not in a valid format").Err()
 	}
 
 	return ScheduledAtTime(ctx, parsedtime)
 }
 
 func ScheduledAtTime(ctx context.Context, parsedtime time.Time) (*Schedule, error) {
+	eb := errs.B().Meta("parsedtime", parsedtime)
 	schedule, err := RowToSchedule(ctx, sqldb.QueryRow(ctx, `SELECT id, user_id, start_time, end_time FROM schedules WHERE $1 >= start_time AND $1 <= end_time`, parsedtime))
 	if errors.Is(err, sqldb.ErrNoRows) {
-		return nil, fmt.Errorf("no schedule found")
+		return nil, eb.Code(errs.NotFound).Msg("no schedule found").Err()
 	}
 	if err != nil {
 		return nil, err
@@ -94,9 +95,10 @@ func ScheduledAtTime(ctx context.Context, parsedtime time.Time) (*Schedule, erro
 
 //encore:api public method=GET path=/schedules/:id
 func GetById(ctx context.Context, id int32) (*Schedule, error) {
+	eb := errs.B().Meta("id", id)
 	schedule, err := RowToSchedule(ctx, sqldb.QueryRow(ctx, `SELECT id, user_id, start_time, end_time FROM schedules WHERE id = $1`, id))
 	if err != nil {
-		return nil, fmt.Errorf("schedule not found")
+		return nil, eb.Code(errs.NotFound).Msg("schedule not found").Err()
 	}
 
 	return schedule, nil
@@ -188,12 +190,13 @@ func RowToSchedule(ctx context.Context, row interface {
 
 // Helper function for making sure start and end times are valid
 func VerifyTimeRange(timeRange TimeRange) error {
+	eb := errs.B().Meta("timeRange", timeRange)
 	if timeRange.Start.Equal(timeRange.End) {
-		return fmt.Errorf("start timestamp cannot be equal to end timestamp")
+		return eb.Code(errs.InvalidArgument).Msg("start timestamp cannot be equal to end timestamp").Err()
 	}
 
 	if timeRange.Start.After(timeRange.End) {
-		return fmt.Errorf("start timestamp cannot be greater than end timestamp")
+		return eb.Code(errs.InvalidArgument).Msg("start timestamp cannot be greater than end timestamp").Err()
 	}
 
 	return nil

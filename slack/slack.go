@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
+	"encore.dev/beta/errs"
 	"io"
 	"net/http"
 )
@@ -15,6 +15,7 @@ type NotifyParams struct {
 
 //encore:api private
 func Notify(ctx context.Context, p *NotifyParams) error {
+	eb := errs.B()
 	reqBody, err := json.Marshal(p)
 	if err != nil {
 		return err
@@ -32,7 +33,7 @@ func Notify(ctx context.Context, p *NotifyParams) error {
 
 	if resp.StatusCode >= 400 {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("notify slack: %s: %s", resp.Status, body)
+		return eb.Code(errs.Unavailable).Msgf("notify slack: %s: %s", resp.Status, body).Err()
 	}
 	return nil
 }

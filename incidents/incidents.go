@@ -5,6 +5,7 @@ import (
 	"encore.app/schedules"
 	"encore.app/slack"
 	"encore.app/users"
+	"encore.dev/beta/errs"
 	"encore.dev/cron"
 	"encore.dev/rlog"
 	"encore.dev/storage/sqldb"
@@ -55,6 +56,7 @@ func ListAssigned(ctx context.Context, id int32) (*Incidents, error) {
 
 //encore:api public method=PUT path=/incidents/:id/reassign
 func Reassign(ctx context.Context, id int32, params *ReassignParams) (*Incident, error) {
+	eb := errs.B().Meta("params", params)
 	rows, err := sqldb.Query(ctx, `UPDATE incidents SET assigned_user_id = $1 WHERE acknowledged_at IS NULL AND id = $2 RETURNING id, assigned_user_id, body, created_at, acknowledged_at`, params.UserId, id)
 	if err != nil {
 		return nil, err
@@ -65,7 +67,7 @@ func Reassign(ctx context.Context, id int32, params *ReassignParams) (*Incident,
 		return nil, err
 	}
 	if incidents.Items == nil {
-		return nil, fmt.Errorf("no incident found")
+		return nil, eb.Code(errs.NotFound).Msg("no incident found").Err()
 	}
 
 	incident := &incidents.Items[0]
@@ -82,6 +84,7 @@ type ReassignParams struct {
 
 //encore:api public method=PUT path=/incidents/:id/acknowledge
 func Acknowledge(ctx context.Context, id int32) (*Incident, error) {
+	eb := errs.B().Meta("incidentId", id)
 	rows, err := sqldb.Query(ctx, `UPDATE incidents SET acknowledged_at = NOW() WHERE acknowledged_at IS NULL AND id = $1 RETURNING id, assigned_user_id, body, created_at, acknowledged_at`, id)
 	if err != nil {
 		return nil, err
@@ -92,7 +95,7 @@ func Acknowledge(ctx context.Context, id int32) (*Incident, error) {
 		return nil, err
 	}
 	if incidents.Items == nil {
-		return nil, fmt.Errorf("no incident found")
+		return nil, eb.Code(errs.NotFound).Msg("no incident found").Err()
 	}
 
 	incident := &incidents.Items[0]
@@ -105,6 +108,7 @@ func Acknowledge(ctx context.Context, id int32) (*Incident, error) {
 
 //encore:api public method=POST path=/incidents/acknowledge_all
 func AcknowledgeAll(ctx context.Context) (*Incident, error) {
+	eb := errs.B()
 	rows, err := sqldb.Query(ctx, `UPDATE incidents SET acknowledged_at = NOW() WHERE acknowledged_at IS NULL RETURNING id, assigned_user_id, body, created_at, acknowledged_at`)
 	if err != nil {
 		return nil, err
@@ -115,7 +119,7 @@ func AcknowledgeAll(ctx context.Context) (*Incident, error) {
 		return nil, err
 	}
 	if incidents.Items == nil {
-		return nil, fmt.Errorf("no incident found")
+		return nil, eb.Code(errs.NotFound).Msg("no incident found").Err()
 	}
 
 	return &incidents.Items[0], err
@@ -161,6 +165,8 @@ type CreateParams struct {
 
 // Helper to take a sqldb.Rows instance and convert it into a list of Incidents
 func RowsToIncidents(ctx context.Context, rows *sqldb.Rows) (*Incidents, error) {
+	eb := errs.B()
+
 	defer rows.Close()
 
 	var incidents []Incident
@@ -168,12 +174,12 @@ func RowsToIncidents(ctx context.Context, rows *sqldb.Rows) (*Incidents, error) 
 		var incident = Incident{}
 		var assignedUserId *int32
 		if err := rows.Scan(&incident.Id, &assignedUserId, &incident.Body, &incident.CreatedAt, &incident.AcknowledgedAt); err != nil {
-			return nil, fmt.Errorf("could not scan: %v", err)
+			return nil, eb.Code(errs.Unknown).Msgf("could not scan: %v", err).Err()
 		}
 		if assignedUserId != nil {
 			user, err := users.Get(ctx, *assignedUserId)
 			if err != nil {
-				return nil, fmt.Errorf("could not retrieve user for incident %v", assignedUserId)
+				return nil, eb.Code(errs.NotFound).Msgf("could not retrieve user for incident %v", assignedUserId).Err()
 			}
 			incident.Assignee = user
 		}

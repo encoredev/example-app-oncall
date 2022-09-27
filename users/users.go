@@ -2,9 +2,9 @@ package users
 
 import (
 	"context"
+	"encore.dev/beta/errs"
 	"encore.dev/storage/sqldb"
 	"errors"
-	"fmt"
 )
 
 type Users struct {
@@ -20,16 +20,18 @@ type User struct {
 
 //encore:api public method=POST path=/users
 func Create(ctx context.Context, params CreateParams) (*User, error) {
+	eb := errs.B().Meta("params", params)
+
 	if len(params.FirstName) == 0 {
-		return nil, fmt.Errorf("first name is empty")
+		return nil, eb.Code(errs.InvalidArgument).Msg("first name is empty").Err()
 	}
 
 	if len(params.LastName) == 0 {
-		return nil, fmt.Errorf("last name is empty")
+		return nil, eb.Code(errs.InvalidArgument).Msg("last name is empty").Err()
 	}
 
 	if len(params.SlackHandle) == 0 {
-		return nil, fmt.Errorf("slack handle is empty")
+		return nil, eb.Code(errs.InvalidArgument).Msg("slack handle is empty").Err()
 	}
 
 	user := User{}
@@ -53,6 +55,8 @@ type CreateParams struct {
 
 //encore:api public method=GET path=/users/:id
 func Get(ctx context.Context, id int32) (*User, error) {
+	eb := errs.B().Meta("userId", id)
+
 	user := User{}
 	err := sqldb.QueryRow(
 		ctx,
@@ -60,7 +64,7 @@ func Get(ctx context.Context, id int32) (*User, error) {
 		id).Scan(&user.Id, &user.FirstName, &user.LastName, &user.SlackHandle)
 
 	if errors.Is(err, sqldb.ErrNoRows) {
-		return nil, fmt.Errorf("no user found")
+		return nil, eb.Code(errs.InvalidArgument).Msg("no user found").Err()
 	}
 
 	if err != nil {
@@ -72,6 +76,7 @@ func Get(ctx context.Context, id int32) (*User, error) {
 
 //encore:api public method=GET path=/users
 func List(ctx context.Context) (*Users, error) {
+	eb := errs.B()
 	rows, err := sqldb.Query(ctx, `SELECT id, first_name, last_name, slack_handle FROM users`)
 	if err != nil {
 		return nil, err
@@ -83,7 +88,7 @@ func List(ctx context.Context) (*Users, error) {
 	for rows.Next() {
 		var user = User{}
 		if err := rows.Scan(&user.Id, &user.FirstName, &user.LastName, &user.SlackHandle); err != nil {
-			return nil, fmt.Errorf("could not scan: %v", err)
+			return nil, eb.Code(errs.Unknown).Msgf("could not scan: %v", err).Err()
 		}
 		users = append(users, user)
 	}
