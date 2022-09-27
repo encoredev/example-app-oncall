@@ -19,11 +19,18 @@ func TestSchedules(t *testing.T) {
 		End:   time.Date(2099, 12, 31, 23, 59, 0, 0, time.UTC),
 	}
 
+	t.Run("empty the schedule", func(t *testing.T) {
+		if _, err := DeleteByTimeRange(context.Background(), wideTimeRange); err != nil {
+			t.Fatal("could not empty the schedule", err)
+		}
+	})
+
 	t.Run("with an empty list", func(t *testing.T) {
 		schedules, err := ListByTimeRange(context.Background(), wideTimeRange)
 		if err != nil {
 			t.Fatal(err)
-		} else if schedules.Items != nil {
+		}
+		if schedules.Items != nil {
 			t.Fatal("schedule should be an empty list")
 		}
 	})
@@ -37,7 +44,7 @@ func TestSchedules(t *testing.T) {
 		schedule = createSchedule(t, user, *timeRange)
 
 		if got, _ := ScheduledAtTime(context.Background(), time.Now()); got != nil {
-			t.Errorf("expecting schedule to be currently empty")
+			t.Fatal("expecting schedule to be currently empty")
 		}
 	})
 
@@ -45,13 +52,13 @@ func TestSchedules(t *testing.T) {
 		time.Sleep(time.Duration(100 * 1000 * 1000))
 
 		if got, _ := ScheduledAtTime(context.Background(), timeRange.Start); !reflect.DeepEqual(got, schedule) {
-			t.Errorf("got %q, want %q", got, schedule)
+			t.Fatalf("got %q, want %q", got, schedule)
 		}
 	})
 
 	t.Run("with one item in the list", func(t *testing.T) {
 		if schedules, _ := ListByTimeRange(context.Background(), wideTimeRange); len(schedules.Items) != 1 {
-			t.Fatal("schedules should be an empty list")
+			t.Fatalf("got %q, want %q", len(schedules.Items), 1)
 		}
 	})
 }
@@ -63,7 +70,7 @@ func createUser(t *testing.T) *users.User {
 		SlackHandle: "bil",
 	})
 	if err != nil {
-		t.Fatalf("failed to create user %q", err)
+		t.Fatal("failed to create user", err)
 	}
 	return user
 }
@@ -71,7 +78,7 @@ func createUser(t *testing.T) *users.User {
 func createSchedule(t *testing.T, user *users.User, timeRange TimeRange) *Schedule {
 	schedule, err := Create(context.Background(), user.Id, timeRange)
 	if err != nil {
-		t.Fatalf("failed to create schedule %q", err)
+		t.Fatal("failed to create schedule", err)
 	}
 	return schedule
 }

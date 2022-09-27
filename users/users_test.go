@@ -14,17 +14,8 @@ func TestUsersAndFindThemInList(t *testing.T) {
 		t.Fatal(err)
 	}
 	if reflect.DeepEqual(actual, expected) {
-		t.Errorf("expected %q to match %q", expected, actual)
+		t.Fatalf("expected %q to match %q", expected, actual)
 	}
-}
-
-func contains(items []User, expected User) bool {
-	for _, item := range items {
-		if item == expected {
-			return true
-		}
-	}
-	return false
 }
 
 func createUser(t *testing.T) *User {
@@ -34,7 +25,7 @@ func createUser(t *testing.T) *User {
 		SlackHandle: "bil",
 	})
 	if err != nil {
-		t.Fatalf("failed to create user %q", err)
+		t.Fatal("failed to create user", err)
 	}
 	return user
 }

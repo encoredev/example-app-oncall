@@ -11,24 +11,37 @@ import (
 )
 
 func TestIncidents(t *testing.T) {
-	t.Run("with no assignee", incidentDeepEquals(Incident{
-		Body:           "The first incident. This shouldn't be assigned!",
-		Assignee:       nil,
-		Acknowledged:   false,
-		AcknowledgedAt: nil,
-	}))
+	var wideTimeRange = schedules.TimeRange{
+		Start: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
+		End:   time.Date(2099, 12, 31, 23, 59, 0, 0, time.UTC),
+	}
 
-	t.Run("with assignee", func(t *testing.T) {
-		var user = createUser(t)
-		var _ = createSchedule(t, user)
+	t.Run("group", func(t *testing.T) {
+		t.Run("empty the schedule", func(t *testing.T) {
+			if _, err := schedules.DeleteByTimeRange(context.Background(), wideTimeRange); err != nil {
+				t.Fatal(err)
+			}
+		})
 
-		time.Sleep(time.Duration(100 * 1000 * 1000))
-
-		incidentDeepEquals(Incident{
-			Body:           "The second incident. This should be assigned!",
-			Assignee:       user,
+		t.Run("with no assignee", incidentDeepEquals(Incident{
+			Body:           "The first incident. This shouldn't be assigned!",
+			Assignee:       nil,
 			Acknowledged:   false,
 			AcknowledgedAt: nil,
+		}))
+
+		t.Run("with assignee", func(t *testing.T) {
+			var user = createUser(t)
+			var _ = createSchedule(t, user)
+
+			time.Sleep(time.Duration(100 * 1000 * 1000))
+
+			incidentDeepEquals(Incident{
+				Body:           "The second incident. This should be assigned!",
+				Assignee:       user,
+				Acknowledged:   false,
+				AcknowledgedAt: nil,
+			})
 		})
 	})
 }
@@ -40,7 +53,7 @@ func createUser(t *testing.T) *users.User {
 		SlackHandle: "bil",
 	})
 	if err != nil {
-		t.Fatalf("failed to create user %q", err)
+		t.Fatal("failed to create user", err)
 	}
 	return user
 }
@@ -51,7 +64,7 @@ func createSchedule(t *testing.T, user *users.User) *schedules.Schedule {
 		End:   time.Now().Add(time.Duration(1000 * 1000 * 1000)),
 	})
 	if err != nil {
-		t.Fatalf("failed to create schedule %v", err)
+		t.Fatal("failed to create schedule", err)
 	}
 	return schedule
 }
