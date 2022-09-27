@@ -2,11 +2,13 @@ package schedules
 
 import (
 	"context"
-	"encore.app/users"
-	"encore.dev/storage/sqldb"
 	"errors"
 	"fmt"
 	"time"
+
+	"encore.app/users"
+	"encore.dev/beta/errs"
+	"encore.dev/storage/sqldb"
 )
 
 type Schedules struct {
@@ -26,27 +28,28 @@ type TimeRange struct {
 
 //encore:api public method=POST path=/users/:userId/schedules
 func Create(ctx context.Context, userId int32, timeRange TimeRange) (*Schedule, error) {
+	eb := errs.B().Meta("userID", userId, "start", timeRange.Start, "end", timeRange.End)
 	if timeRange.Start.Before(time.Now()) {
-		return nil, fmt.Errorf("start timestamp in the past")
+		return nil, eb.Code(errs.InvalidArgument).Msg("start timestamp in the past").Err()
 	}
 
 	err := VerifyTimeRange(timeRange)
 	if err != nil {
-		return nil, err
-	}
-
-	user, err := users.Get(ctx, userId)
-	if err != nil {
-		return nil, err
+		return nil, eb.Code(errs.InvalidArgument).Cause(err).Msg("invalid time range").Err()
 	}
 
 	// check for existing schedules. we only support 1 at a timestamp right now.
 	if s, err := ScheduledAtTime(ctx, timeRange.Start); s != nil && err == nil {
-		return nil, fmt.Errorf("schedule already exists within this start timestamp")
+		return nil, eb.Code(errs.InvalidArgument).Cause(err).Msg("schedule already exists within this start timestamp").Err()
 	}
 
 	if s, err := ScheduledAtTime(ctx, timeRange.End); s != nil && err == nil {
-		return nil, fmt.Errorf("schedule already exists within this end timestamp")
+		return nil, eb.Code(errs.InvalidArgument).Cause(err).Msg("schedule already exists within this end timestamp").Err()
+	}
+
+	user, err := users.Get(ctx, userId)
+	if err != nil {
+		return nil, eb.Code(errs.Unavailable).Cause(err).Msg("get user").Err()
 	}
 
 	schedule := Schedule{User: *user, Time: TimeRange{}}
@@ -57,7 +60,7 @@ func Create(ctx context.Context, userId int32, timeRange TimeRange) (*Schedule, 
 	).Scan(&schedule.Id, &schedule.Time.Start, &schedule.Time.End)
 
 	if err != nil {
-		return nil, err
+		return nil, eb.Code(errs.Unavailable).Cause(err).Msg("insert schedule").Err()
 	}
 
 	return &schedule, nil
