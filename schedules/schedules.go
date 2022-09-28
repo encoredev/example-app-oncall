@@ -38,11 +38,11 @@ func Create(ctx context.Context, userId int32, timeRange TimeRange) (*Schedule, 
 	}
 
 	// check for existing schedules. we only support 1 at a timestamp right now.
-	if schedule, err := ScheduledAtTime(ctx, timeRange.Start); schedule != nil && err == nil {
+	if schedule, err := ScheduledAt(ctx, timeRange.Start.Format(time.RFC3339)); schedule != nil && err == nil {
 		return nil, eb.Code(errs.InvalidArgument).Cause(err).Msg("schedule already exists within this start timestamp").Err()
 	}
 
-	if schedule, err := ScheduledAtTime(ctx, timeRange.End); schedule != nil && err == nil {
+	if schedule, err := ScheduledAt(ctx, timeRange.End.Format(time.RFC3339)); schedule != nil && err == nil {
 		return nil, eb.Code(errs.InvalidArgument).Cause(err).Msg("schedule already exists within this end timestamp").Err()
 	}
 
@@ -66,7 +66,7 @@ func Create(ctx context.Context, userId int32, timeRange TimeRange) (*Schedule, 
 
 //encore:api public method=GET path=/scheduled
 func ScheduledNow(ctx context.Context) (*Schedule, error) {
-	return ScheduledAt(ctx, time.Now().String())
+	return ScheduledAt(ctx, time.Now().Format(time.RFC3339))
 }
 
 //encore:api public method=GET path=/scheduled/:timestamp
@@ -80,9 +80,9 @@ func ScheduledAt(ctx context.Context, timestamp string) (*Schedule, error) {
 	schedule, err := RowToSchedule(ctx, sqldb.QueryRow(ctx, `
 		SELECT id, user_id, start_time, end_time
 		FROM schedules
-		WHERE $1 >= start_time
-		  AND $1 <= end_time
-	`, parsedtime))
+		WHERE start_time <= $1
+		  AND end_time >= $1
+	`, parsedtime.UTC()))
 	if errors.Is(err, sqldb.ErrNoRows) {
 		return nil, eb.Code(errs.NotFound).Msg("no schedule found").Err()
 	}

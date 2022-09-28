@@ -98,7 +98,7 @@ curl 'http://localhost:4000/schedules?start=2022-01-01T00%3A00%3A00Z&end=2022-12
 Get the on-call schedule for a given timestamp:
 
 ```curl
-curl 'http://localhost:4000/scheduled/2022-09-23T09%3A50%3A00Z' | jq
+curl 'http://localhost:4000/scheduled/2022-09-28T12:27:22+01:00' | jq
 ```
 
 Get the on-call schedule currently active:
