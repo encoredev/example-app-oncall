@@ -89,12 +89,6 @@ curl -d '{
 }' http://localhost:4000/users/1/schedules | jq
 ```
 
-Get an existing on-call schedule by schedule ID:
-
-```curl
-curl http://localhost:4000/schedules/1 | jq
-```
-
 List on-call schedules by time range:
 
 ```curl

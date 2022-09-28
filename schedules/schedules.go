@@ -92,20 +92,6 @@ func ScheduledAt(ctx context.Context, timestamp string) (*Schedule, error) {
 	return schedule, nil
 }
 
-//encore:api public method=GET path=/schedules/:id
-func GetById(ctx context.Context, id int32) (*Schedule, error) {
-	eb := errs.B().Meta("id", id)
-	schedule, err := RowToSchedule(ctx, sqldb.QueryRow(ctx, `
-		SELECT id, user_id, start_time, end_time
-		FROM schedules
-		WHERE id = $1
-	`, id))
-	if err != nil {
-		return nil, eb.Code(errs.NotFound).Msg("schedule not found").Err()
-	}
-	return schedule, nil
-}
-
 //encore:api public method=GET path=/schedules
 func ListByTimeRange(ctx context.Context, timeRange TimeRange) (*Schedules, error) {
 	var rows *sqldb.Rows
