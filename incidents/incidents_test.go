@@ -11,41 +11,43 @@ import (
 )
 
 func TestIncidents(t *testing.T) {
-	var wideTimeRange = schedules.TimeRange{
-		Start: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
-		End:   time.Date(2099, 12, 31, 23, 59, 0, 0, time.UTC),
-	}
-
-	t.Run("empty the schedule", func(t *testing.T) {
-		if _, err := schedules.DeleteByTimeRange(context.Background(), wideTimeRange); err != nil {
-			t.Fatal(err)
+	t.Run("group", func(t *testing.T) {
+		var wideTimeRange = schedules.TimeRange{
+			Start: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
+			End:   time.Date(2099, 12, 31, 23, 59, 0, 0, time.UTC),
 		}
-	})
 
-	t.Run("with no assignee", incidentMatches(Incident{
-		Body:           "The first incident. This shouldn't be assigned!",
-		Assignee:       nil,
-		Acknowledged:   false,
-		AcknowledgedAt: nil,
-	}))
+		t.Run("empty the schedule", func(t *testing.T) {
+			if _, err := schedules.DeleteByTimeRange(context.Background(), wideTimeRange); err != nil {
+				t.Fatal(err)
+			}
+		})
 
-	t.Run("empty the schedule", func(t *testing.T) {
-		if _, err := schedules.DeleteByTimeRange(context.Background(), wideTimeRange); err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	t.Run("with assignee", func(t *testing.T) {
-		var user = createUser(t)
-		var _ = createSchedule(t, user)
-
-		time.Sleep(time.Duration(100 * 1000 * 1000))
-
-		incidentMatches(Incident{
-			Body:           "The second incident. This should be assigned!",
-			Assignee:       user,
+		t.Run("with no assignee", incidentMatches(Incident{
+			Body:           "The first incident. This shouldn't be assigned!",
+			Assignee:       nil,
 			Acknowledged:   false,
 			AcknowledgedAt: nil,
+		}))
+
+		t.Run("empty the schedule", func(t *testing.T) {
+			if _, err := schedules.DeleteByTimeRange(context.Background(), wideTimeRange); err != nil {
+				t.Fatal(err)
+			}
+		})
+
+		t.Run("with assignee", func(t *testing.T) {
+			var user = createUser(t)
+			var _ = createSchedule(t, user)
+
+			time.Sleep(time.Duration(100 * 1000 * 1000))
+
+			incidentMatches(Incident{
+				Body:           "The second incident. This should be assigned!",
+				Assignee:       user,
+				Acknowledged:   false,
+				AcknowledgedAt: nil,
+			})
 		})
 	})
 }
