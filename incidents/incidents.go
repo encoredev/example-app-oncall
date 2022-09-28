@@ -28,7 +28,7 @@ type Incident struct {
 }
 
 //encore:api public method=GET path=/incidents
-func ListAll(ctx context.Context) (*Incidents, error) {
+func List(ctx context.Context) (*Incidents, error) {
 	rows, err := sqldb.Query(ctx, `
 		SELECT id, assigned_user_id, body, created_at, acknowledged_at
 		FROM incidents
@@ -238,7 +238,7 @@ var _ = cron.NewJob("unacknowledged-incidents-reminder", cron.JobConfig{
 
 //encore:api private
 func RemindUnacknowledgedIncidents(ctx context.Context) error {
-	incidents, err := ListAll(ctx) // we never query for acknowledged incidents
+	incidents, err := List(ctx) // we never query for acknowledged incidents
 	if err != nil {
 		return err
 	}
