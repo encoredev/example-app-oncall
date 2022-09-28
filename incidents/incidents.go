@@ -54,8 +54,8 @@ func ListUnassigned(ctx context.Context) (*Incidents, error) {
 	return RowsToIncidents(ctx, rows)
 }
 
-//encore:api public method=PUT path=/incidents/:id/reassign
-func Reassign(ctx context.Context, id int32, params *ReassignParams) (*Incident, error) {
+//encore:api public method=PUT path=/incidents/:id/assign
+func Assign(ctx context.Context, id int32, params *AssignParams) (*Incident, error) {
 	eb := errs.B().Meta("params", params)
 	rows, err := sqldb.Query(ctx, `
 		UPDATE incidents
@@ -84,7 +84,7 @@ func Reassign(ctx context.Context, id int32, params *ReassignParams) (*Incident,
 	return incident, err
 }
 
-type ReassignParams struct {
+type AssignParams struct {
 	UserId int32
 }
 
@@ -215,9 +215,8 @@ func RowsToIncidents(ctx context.Context, rows *sqldb.Rows) (*Incidents, error) 
 	return &Incidents{Items: incidents}, nil
 }
 
-// Track unacknowledged incidents
 var _ = cron.NewJob("unacknowledged-incidents-reminder", cron.JobConfig{
-	Title:    "Notify on Slack about incidents which continue to be unacknowledged",
+	Title:    "Notify on Slack about incidents which are not acknowledged",
 	Every:    10 * cron.Minute,
 	Endpoint: RemindUnacknowledgedIncidents,
 })
@@ -251,15 +250,14 @@ func RemindUnacknowledgedIncidents(ctx context.Context) error {
 	return nil
 }
 
-// Assign the unacknowledged incidents to the person on-call
-var _ = cron.NewJob("reassign-unassigned-incidents", cron.JobConfig{
-	Title:    "Re-assigned incidents which are unassigned",
+var _ = cron.NewJob("assign-unassigned-incidents", cron.JobConfig{
+	Title:    "Assign unassigned incidents to user currently on-call",
 	Every:    cron.Minute,
-	Endpoint: ReassignedUnassignedIncidents,
+	Endpoint: AssignUnassignedIncidents,
 })
 
 //encore:api private
-func ReassignedUnassignedIncidents(ctx context.Context) error {
+func AssignUnassignedIncidents(ctx context.Context) error {
 	// If this code fail, it is either a server error or someone isn't on-call
 	schedule, err := schedules.ScheduledNow(ctx)
 	if err != nil {
@@ -272,7 +270,7 @@ func ReassignedUnassignedIncidents(ctx context.Context) error {
 	}
 
 	for _, incident := range incidents.Items {
-		_, err := Reassign(ctx, incident.Id, &ReassignParams{UserId: schedule.User.Id})
+		_, err := Assign(ctx, incident.Id, &AssignParams{UserId: schedule.User.Id})
 		if err == nil {
 			rlog.Info("OK assigned unassigned incident", "incident", incident, "user", schedule.User)
 		} else {

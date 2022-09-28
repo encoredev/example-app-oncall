@@ -135,12 +135,12 @@ Acknowledge all open incidents:
 curl -X POST http://localhost:4000/incidents/acknowledge_all | jq '.Items'
 ```
 
-Re-assign an incident to another user:
+Assign an unassigned incident to a user:
 
 ```curl
 curl -X PUT -d '{
   "UserId":2
-}' http://localhost:4000/incidents/1/reassign | jq
+}' http://localhost:4000/incidents/1/assign | jq
 ```
 
 List all open incidents:
