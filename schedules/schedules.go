@@ -66,7 +66,7 @@ func Create(ctx context.Context, userId int32, timeRange TimeRange) (*Schedule, 
 
 //encore:api public method=GET path=/scheduled
 func ScheduledNow(ctx context.Context) (*Schedule, error) {
-	return ScheduledAt(ctx, time.Now().Format(time.RFC3339))
+	return Scheduled(ctx, time.Now())
 }
 
 //encore:api public method=GET path=/scheduled/:timestamp
@@ -77,12 +77,17 @@ func ScheduledAt(ctx context.Context, timestamp string) (*Schedule, error) {
 		return nil, eb.Code(errs.InvalidArgument).Msg("timestamp is not in a valid format").Err()
 	}
 
+	return Scheduled(ctx, parsedtime)
+}
+
+func Scheduled(ctx context.Context, timestamp time.Time) (*Schedule, error) {
+	eb := errs.B().Meta("timestamp", timestamp)
 	schedule, err := RowToSchedule(ctx, sqldb.QueryRow(ctx, `
 		SELECT id, user_id, start_time, end_time
 		FROM schedules
 		WHERE start_time <= $1
 		  AND end_time >= $1
-	`, parsedtime.UTC()))
+	`, timestamp.UTC()))
 	if errors.Is(err, sqldb.ErrNoRows) {
 		return nil, eb.Code(errs.NotFound).Msg("no schedule found").Err()
 	}

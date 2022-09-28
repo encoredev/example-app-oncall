@@ -19,47 +19,47 @@ func TestSchedules(t *testing.T) {
 		End:   time.Date(2099, 12, 31, 23, 59, 0, 0, time.UTC),
 	}
 
-	t.Run("group", func(t *testing.T) {
-		t.Run("empty the schedule", func(t *testing.T) {
-			if _, err := DeleteByTimeRange(context.Background(), wideTimeRange); err != nil {
-				t.Fatal("could not empty the schedule", err)
-			}
-		})
+	t.Run("empty the schedule", func(t *testing.T) {
+		if _, err := DeleteByTimeRange(context.Background(), wideTimeRange); err != nil {
+			t.Fatal("could not empty the schedule", err)
+		}
+	})
 
-		t.Run("with an empty list", func(t *testing.T) {
-			schedules, err := ListByTimeRange(context.Background(), wideTimeRange)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if schedules.Items != nil {
-				t.Fatal("schedule should be an empty list")
-			}
-		})
+	t.Run("with an empty list", func(t *testing.T) {
+		schedules, err := ListByTimeRange(context.Background(), wideTimeRange)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if schedules.Items != nil {
+			t.Fatal("schedule should be an empty list")
+		}
+	})
 
-		t.Run("with nobody scheduled for now", func(t *testing.T) {
-			timeRange = &TimeRange{
-				Start: time.Now().Add(time.Duration(100 * 1000 * 1000)),
-				End:   time.Now().Add(time.Duration(1000 * 1000 * 1000)),
-			}
-			user = createUser(t)
-			schedule = createSchedule(t, user, *timeRange)
+	t.Run("with nobody scheduled for now", func(t *testing.T) {
+		timeRange = &TimeRange{
+			Start: time.Now().Add(time.Duration(100 * 1000 * 1000)),
+			End:   time.Now().Add(time.Duration(1000 * 1000 * 1000)),
+		}
+		user = createUser(t)
+		schedule = createSchedule(t, user, *timeRange)
 
-			if got, _ := ScheduledAt(context.Background(), time.Now().Format(time.RFC3339)); got != nil {
-				t.Fatal("expecting schedule to be currently empty")
-			}
-		})
+		if got, _ := Scheduled(context.Background(), time.Now()); got != nil {
+			t.Fatal("expecting schedule to be currently empty")
+		}
+	})
 
-		t.Run("with someone scheduled for now", func(t *testing.T) {
-			if got, _ := ScheduledAt(context.Background(), timeRange.Start.Format(time.RFC3339)); !reflect.DeepEqual(got, schedule) {
-				t.Fatalf("got %q, want %q", got, schedule)
-			}
-		})
+	t.Run("with someone scheduled for now", func(t *testing.T) {
+		if got, _ := Scheduled(context.Background(), timeRange.Start); !reflect.DeepEqual(got, schedule) {
+			t.Fatalf("got %q, want %q", got, schedule)
+		}
+	})
 
-		t.Run("with one item in the list", func(t *testing.T) {
-			if schedules, _ := ListByTimeRange(context.Background(), wideTimeRange); len(schedules.Items) != 1 {
-				t.Fatalf("got %q, want %q", len(schedules.Items), 1)
-			}
-		})
+	t.Run("with one item in the list", func(t *testing.T) {
+		if schedules, _ := ListByTimeRange(context.Background(), wideTimeRange); len(schedules.Items) != 1 {
+			t.Log(schedules)
+
+			t.Fatalf("got %q, want %q", len(schedules.Items), 1)
+		}
 	})
 }
 
