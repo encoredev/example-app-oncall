@@ -38,11 +38,11 @@ func Create(ctx context.Context, userId int32, timeRange TimeRange) (*Schedule, 
 	}
 
 	// check for existing schedules. we only support 1 at a timestamp right now.
-	if s, err := ScheduledAtTime(ctx, timeRange.Start); s != nil && err == nil {
+	if schedule, err := ScheduledAtTime(ctx, timeRange.Start); schedule != nil && err == nil {
 		return nil, eb.Code(errs.InvalidArgument).Cause(err).Msg("schedule already exists within this start timestamp").Err()
 	}
 
-	if s, err := ScheduledAtTime(ctx, timeRange.End); s != nil && err == nil {
+	if schedule, err := ScheduledAtTime(ctx, timeRange.End); schedule != nil && err == nil {
 		return nil, eb.Code(errs.InvalidArgument).Cause(err).Msg("schedule already exists within this end timestamp").Err()
 	}
 
@@ -52,12 +52,11 @@ func Create(ctx context.Context, userId int32, timeRange TimeRange) (*Schedule, 
 	}
 
 	schedule := Schedule{User: *user, Time: TimeRange{}}
-	err = sqldb.QueryRow(
-		ctx,
-		`INSERT INTO schedules (user_id, start_time, end_time) VALUES ($1, $2, $3) RETURNING id, start_time, end_time`,
-		userId, timeRange.Start, timeRange.End,
-	).Scan(&schedule.Id, &schedule.Time.Start, &schedule.Time.End)
-
+	err = sqldb.QueryRow(ctx, `
+		INSERT INTO schedules (user_id, start_time, end_time)
+		VALUES ($1, $2, $3)
+		RETURNING id, start_time, end_time
+	`, userId, timeRange.Start, timeRange.End).Scan(&schedule.Id, &schedule.Time.Start, &schedule.Time.End)
 	if err != nil {
 		return nil, eb.Code(errs.Unavailable).Cause(err).Msg("insert schedule").Err()
 	}
@@ -77,13 +76,17 @@ func ScheduledAtTimestamp(ctx context.Context, timestamp string) (*Schedule, err
 	if err != nil {
 		return nil, eb.Code(errs.InvalidArgument).Msg("timestamp is not in a valid format").Err()
 	}
-
 	return ScheduledAtTime(ctx, parsedtime)
 }
 
 func ScheduledAtTime(ctx context.Context, parsedtime time.Time) (*Schedule, error) {
 	eb := errs.B().Meta("parsedtime", parsedtime)
-	schedule, err := RowToSchedule(ctx, sqldb.QueryRow(ctx, `SELECT id, user_id, start_time, end_time FROM schedules WHERE $1 >= start_time AND $1 <= end_time`, parsedtime))
+	schedule, err := RowToSchedule(ctx, sqldb.QueryRow(ctx, `
+		SELECT id, user_id, start_time, end_time
+		FROM schedules
+		WHERE $1 >= start_time
+		  AND $1 <= end_time
+	`, parsedtime))
 	if errors.Is(err, sqldb.ErrNoRows) {
 		return nil, eb.Code(errs.NotFound).Msg("no schedule found").Err()
 	}
@@ -96,11 +99,14 @@ func ScheduledAtTime(ctx context.Context, parsedtime time.Time) (*Schedule, erro
 //encore:api public method=GET path=/schedules/:id
 func GetById(ctx context.Context, id int32) (*Schedule, error) {
 	eb := errs.B().Meta("id", id)
-	schedule, err := RowToSchedule(ctx, sqldb.QueryRow(ctx, `SELECT id, user_id, start_time, end_time FROM schedules WHERE id = $1`, id))
+	schedule, err := RowToSchedule(ctx, sqldb.QueryRow(ctx, `
+		SELECT id, user_id, start_time, end_time
+		FROM schedules
+		WHERE id = $1
+	`, id))
 	if err != nil {
 		return nil, eb.Code(errs.NotFound).Msg("schedule not found").Err()
 	}
-
 	return schedule, nil
 }
 
@@ -114,11 +120,13 @@ func ListByTimeRange(ctx context.Context, timeRange TimeRange) (*Schedules, erro
 		return nil, err
 	}
 
-	rows, err = sqldb.Query(
-		ctx,
-		`SELECT id, user_id, start_time, end_time FROM schedules WHERE start_time > $1 AND end_time < $2 ORDER BY start_time ASC`,
-		timeRange.Start, timeRange.End,
-	)
+	rows, err = sqldb.Query(ctx, `
+		SELECT id, user_id, start_time, end_time
+		FROM schedules
+		WHERE start_time >= $1
+		  AND end_time <= $2
+		ORDER BY start_time ASC
+	`, timeRange.Start, timeRange.End)
 	if err != nil {
 		return nil, err
 	}

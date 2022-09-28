@@ -29,7 +29,11 @@ type Incident struct {
 
 //encore:api public method=GET path=/incidents
 func ListAll(ctx context.Context) (*Incidents, error) {
-	rows, err := sqldb.Query(ctx, `SELECT id, assigned_user_id, body, created_at, acknowledged_at FROM incidents WHERE acknowledged_at IS NULL`)
+	rows, err := sqldb.Query(ctx, `
+		SELECT id, assigned_user_id, body, created_at, acknowledged_at
+		FROM incidents
+		WHERE acknowledged_at IS NULL
+	`)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +42,12 @@ func ListAll(ctx context.Context) (*Incidents, error) {
 
 //encore:api public method=GET path=/incidents/unassigned
 func ListUnassigned(ctx context.Context) (*Incidents, error) {
-	rows, err := sqldb.Query(ctx, `SELECT id, assigned_user_id, body, created_at, acknowledged_at FROM incidents WHERE acknowledged_at IS NULL AND assigned_user_id IS NULL`)
+	rows, err := sqldb.Query(ctx, `
+		SELECT id, assigned_user_id, body, created_at, acknowledged_at
+		FROM incidents
+		WHERE acknowledged_at IS NULL 
+		  AND assigned_user_id IS NULL
+	`)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +56,12 @@ func ListUnassigned(ctx context.Context) (*Incidents, error) {
 
 //encore:api public method=GET path=/users/:id/incidents
 func ListAssigned(ctx context.Context, id int32) (*Incidents, error) {
-	rows, err := sqldb.Query(ctx, `SELECT id, assigned_user_id, body, created_at, acknowledged_at FROM incidents WHERE acknowledged_at IS NULL AND assigned_user_id = $1`, id)
+	rows, err := sqldb.Query(ctx, `
+		SELECT id, assigned_user_id, body, created_at, acknowledged_at
+		FROM incidents
+		WHERE acknowledged_at IS NULL 
+		  AND assigned_user_id = $1
+	`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +71,13 @@ func ListAssigned(ctx context.Context, id int32) (*Incidents, error) {
 //encore:api public method=PUT path=/incidents/:id/reassign
 func Reassign(ctx context.Context, id int32, params *ReassignParams) (*Incident, error) {
 	eb := errs.B().Meta("params", params)
-	rows, err := sqldb.Query(ctx, `UPDATE incidents SET assigned_user_id = $1 WHERE acknowledged_at IS NULL AND id = $2 RETURNING id, assigned_user_id, body, created_at, acknowledged_at`, params.UserId, id)
+	rows, err := sqldb.Query(ctx, `
+		UPDATE incidents
+		SET assigned_user_id = $1
+		WHERE acknowledged_at IS NULL
+		  AND id = $2
+		RETURNING id, assigned_user_id, body, created_at, acknowledged_at
+	`, params.UserId, id)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +105,13 @@ type ReassignParams struct {
 //encore:api public method=PUT path=/incidents/:id/acknowledge
 func Acknowledge(ctx context.Context, id int32) (*Incident, error) {
 	eb := errs.B().Meta("incidentId", id)
-	rows, err := sqldb.Query(ctx, `UPDATE incidents SET acknowledged_at = NOW() WHERE acknowledged_at IS NULL AND id = $1 RETURNING id, assigned_user_id, body, created_at, acknowledged_at`, id)
+	rows, err := sqldb.Query(ctx, `
+		UPDATE incidents
+		SET acknowledged_at = NOW()
+		WHERE acknowledged_at IS NULL
+		  AND id = $1
+		RETURNING id, assigned_user_id, body, created_at, acknowledged_at
+	`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +135,12 @@ func Acknowledge(ctx context.Context, id int32) (*Incident, error) {
 //encore:api public method=POST path=/incidents/acknowledge_all
 func AcknowledgeAll(ctx context.Context) (*Incident, error) {
 	eb := errs.B()
-	rows, err := sqldb.Query(ctx, `UPDATE incidents SET acknowledged_at = NOW() WHERE acknowledged_at IS NULL RETURNING id, assigned_user_id, body, created_at, acknowledged_at`)
+	rows, err := sqldb.Query(ctx, `
+		UPDATE incidents
+		SET acknowledged_at = NOW()
+		WHERE acknowledged_at IS NULL
+		RETURNING id, assigned_user_id, body, created_at, acknowledged_at
+	`)
 	if err != nil {
 		return nil, err
 	}
@@ -138,10 +169,18 @@ func Create(ctx context.Context, params *CreateParams) (*Incident, error) {
 	var row *sqldb.Row
 	if schedule != nil {
 		// Someone is on-call
-		row = sqldb.QueryRow(ctx, `INSERT INTO incidents (assigned_user_id, body) VALUES ($1, $2) RETURNING id, body, created_at`, &schedule.User.Id, params.Body)
+		row = sqldb.QueryRow(ctx, `
+			INSERT INTO incidents (assigned_user_id, body)
+			VALUES ($1, $2)
+			RETURNING id, body, created_at
+		`, &schedule.User.Id, params.Body)
 	} else {
 		// Nobody is on-call
-		row = sqldb.QueryRow(ctx, `INSERT INTO incidents (body) VALUES ($1) RETURNING id, body, created_at`, params.Body)
+		row = sqldb.QueryRow(ctx, `
+			INSERT INTO incidents (body)
+			VALUES ($1)
+			RETURNING id, body, created_at
+		`, params.Body)
 	}
 
 	if err = row.Scan(&incident.Id, &incident.Body, &incident.CreatedAt); err != nil {

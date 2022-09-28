@@ -35,11 +35,11 @@ func Create(ctx context.Context, params CreateParams) (*User, error) {
 	}
 
 	user := User{}
-	err := sqldb.QueryRow(
-		ctx,
-		`INSERT INTO users (first_name, last_name, slack_handle) VALUES ($1, $2, $3) RETURNING id, first_name, last_name, slack_handle`,
-		params.FirstName, params.LastName, params.SlackHandle,
-	).Scan(&user.Id, &user.FirstName, &user.LastName, &user.SlackHandle)
+	err := sqldb.QueryRow(ctx, `
+		INSERT INTO users (first_name, last_name, slack_handle)
+		VALUES ($1, $2, $3)
+		RETURNING id, first_name, last_name, slack_handle
+	`, params.FirstName, params.LastName, params.SlackHandle).Scan(&user.Id, &user.FirstName, &user.LastName, &user.SlackHandle)
 	if err != nil {
 		return nil, err
 	}
@@ -58,10 +58,11 @@ func Get(ctx context.Context, id int32) (*User, error) {
 	eb := errs.B().Meta("userId", id)
 
 	user := User{}
-	err := sqldb.QueryRow(
-		ctx,
-		`SELECT id, first_name, last_name, slack_handle FROM users WHERE id = $1`,
-		id).Scan(&user.Id, &user.FirstName, &user.LastName, &user.SlackHandle)
+	err := sqldb.QueryRow(ctx, `
+		SELECT id, first_name, last_name, slack_handle
+		FROM users
+		WHERE id = $1
+	`, id).Scan(&user.Id, &user.FirstName, &user.LastName, &user.SlackHandle)
 
 	if errors.Is(err, sqldb.ErrNoRows) {
 		return nil, eb.Code(errs.InvalidArgument).Msg("no user found").Err()
@@ -77,7 +78,10 @@ func Get(ctx context.Context, id int32) (*User, error) {
 //encore:api public method=GET path=/users
 func List(ctx context.Context) (*Users, error) {
 	eb := errs.B()
-	rows, err := sqldb.Query(ctx, `SELECT id, first_name, last_name, slack_handle FROM users`)
+	rows, err := sqldb.Query(ctx, `
+		SELECT id, first_name, last_name, slack_handle
+		FROM users
+	`)
 	if err != nil {
 		return nil, err
 	}
