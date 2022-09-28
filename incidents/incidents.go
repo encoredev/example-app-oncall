@@ -40,20 +40,6 @@ func List(ctx context.Context) (*Incidents, error) {
 	return RowsToIncidents(ctx, rows)
 }
 
-//encore:api public method=GET path=/incidents/unassigned
-func ListUnassigned(ctx context.Context) (*Incidents, error) {
-	rows, err := sqldb.Query(ctx, `
-		SELECT id, assigned_user_id, body, created_at, acknowledged_at
-		FROM incidents
-		WHERE acknowledged_at IS NULL 
-		  AND assigned_user_id IS NULL
-	`)
-	if err != nil {
-		return nil, err
-	}
-	return RowsToIncidents(ctx, rows)
-}
-
 //encore:api public method=PUT path=/incidents/:id/assign
 func Assign(ctx context.Context, id int32, params *AssignParams) (*Incident, error) {
 	eb := errs.B().Meta("params", params)
@@ -264,12 +250,16 @@ func AssignUnassignedIncidents(ctx context.Context) error {
 		return err
 	}
 
-	incidents, err := ListUnassigned(ctx) // we never query for acknowledged incidents
+	incidents, err := List(ctx) // we never query for acknowledged incidents
 	if err != nil {
 		return err
 	}
 
 	for _, incident := range incidents.Items {
+		if incident.Assignee != nil {
+			continue // this incident has already been assigned
+		}
+
 		_, err := Assign(ctx, incident.Id, &AssignParams{UserId: schedule.User.Id})
 		if err == nil {
 			rlog.Info("OK assigned unassigned incident", "incident", incident, "user", schedule.User)

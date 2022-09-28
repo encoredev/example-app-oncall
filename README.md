@@ -149,12 +149,6 @@ List all open incidents:
 curl http://localhost:4000/incidents | jq '.Items'
 ```
 
-List all unassigned incidents:
-
-```curl
-curl http://localhost:4000/incidents/unassigned | jq '.Items'
-```
-
 ## Install
 
 ```bash
