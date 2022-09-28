@@ -66,21 +66,17 @@ func Create(ctx context.Context, userId int32, timeRange TimeRange) (*Schedule, 
 
 //encore:api public method=GET path=/scheduled
 func ScheduledNow(ctx context.Context) (*Schedule, error) {
-	return ScheduledAtTime(ctx, time.Now())
+	return ScheduledAt(ctx, time.Now().String())
 }
 
 //encore:api public method=GET path=/scheduled/:timestamp
-func ScheduledAtTimestamp(ctx context.Context, timestamp string) (*Schedule, error) {
+func ScheduledAt(ctx context.Context, timestamp string) (*Schedule, error) {
 	eb := errs.B().Meta("timestamp", timestamp)
 	parsedtime, err := time.Parse(time.RFC3339, timestamp)
 	if err != nil {
 		return nil, eb.Code(errs.InvalidArgument).Msg("timestamp is not in a valid format").Err()
 	}
-	return ScheduledAtTime(ctx, parsedtime)
-}
 
-func ScheduledAtTime(ctx context.Context, parsedtime time.Time) (*Schedule, error) {
-	eb := errs.B().Meta("parsedtime", parsedtime)
 	schedule, err := RowToSchedule(ctx, sqldb.QueryRow(ctx, `
 		SELECT id, user_id, start_time, end_time
 		FROM schedules
@@ -143,21 +139,6 @@ func ListByTimeRange(ctx context.Context, timeRange TimeRange) (*Schedules, erro
 	}
 
 	return &Schedules{Items: schedules}, nil
-}
-
-//encore:api public method=DELETE path=/schedules/:id
-func DeleteById(ctx context.Context, id int32) (*Schedule, error) {
-	schedule, err := GetById(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = sqldb.Exec(ctx, `DELETE FROM schedules WHERE id = $1`, id)
-	if err != nil {
-		return nil, err
-	}
-
-	return schedule, err
 }
 
 //encore:api public method=DELETE path=/schedules

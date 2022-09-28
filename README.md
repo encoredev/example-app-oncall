@@ -119,12 +119,6 @@ Delete on-call schedule by time range:
 curl -X DELETE 'http://localhost:4000/schedules?start=2022-01-01T00%3A00%3A00Z&end=2022-12-31T23%3A59%3A00Z' | jq
 ```
 
-Delete on-call schedule by ID:
-
-```curl
-curl -X DELETE http://localhost:4000/schedules/1 | jq
-```
-
 ### Incidents
 
 Create a new incident:
