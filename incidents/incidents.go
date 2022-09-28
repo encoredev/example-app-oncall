@@ -54,20 +54,6 @@ func ListUnassigned(ctx context.Context) (*Incidents, error) {
 	return RowsToIncidents(ctx, rows)
 }
 
-//encore:api public method=GET path=/users/:id/incidents
-func ListAssigned(ctx context.Context, id int32) (*Incidents, error) {
-	rows, err := sqldb.Query(ctx, `
-		SELECT id, assigned_user_id, body, created_at, acknowledged_at
-		FROM incidents
-		WHERE acknowledged_at IS NULL 
-		  AND assigned_user_id = $1
-	`, id)
-	if err != nil {
-		return nil, err
-	}
-	return RowsToIncidents(ctx, rows)
-}
-
 //encore:api public method=PUT path=/incidents/:id/reassign
 func Reassign(ctx context.Context, id int32, params *ReassignParams) (*Incident, error) {
 	eb := errs.B().Meta("params", params)

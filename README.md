@@ -167,12 +167,6 @@ List all unassigned incidents:
 curl http://localhost:4000/incidents/unassigned | jq '.Items'
 ```
 
-List all incidents assigned to a user:
-
-```curl
-curl http://localhost:4000/users/1/incidents | jq '.Items'
-```
-
 ## Install
 
 ```bash
