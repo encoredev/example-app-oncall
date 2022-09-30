@@ -11,9 +11,18 @@ This is a Go application that allows you to easily deploy your own on-call manag
 This took about 8 hours to build from scratch, including tests using [Encore](https://encore.dev). It took 2 minutes to deploy, including with the database.
 This included time to refactor for extensibility so it can support other use cases (i.e. a support ticket system).
 
+## Tutorials
+
+We have both a [written tutorial (30 min)](https://encore.dev/docs/tutorials/incident-management-tool) as well as a [YouTube video (50 min)](https://www.youtube.com/watch?v=BR_ys_qR2kI) outlining how to build this example app from scratch!
+
 ## Install
 
 You will need the [Encore Framework](https://encore.dev/docs/install) as well as an [Encore account (it is free!)](https://encore.dev/login) to run and deploy this application.
+
+```bash
+brew install encoredev/tap/encore
+encore auth login
+```
 
 ## Architecture
 
