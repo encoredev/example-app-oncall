@@ -1,0 +1,1 @@
+INSERT INTO users (first_name, last_name, slack_handle) VALUES ('Bilawal', 'Hameed', 'Bil');
