@@ -2,6 +2,7 @@ package schedules
 
 import (
 	"context"
+	"encore.app/users"
 	"errors"
 	"time"
 
@@ -14,9 +15,9 @@ type Schedules struct {
 }
 
 type Schedule struct {
-	Id     int
-	UserId int
-	Time   TimeRange
+	Id   int
+	User users.User
+	Time TimeRange
 }
 
 type TimeRange struct {
@@ -45,7 +46,13 @@ func Create(ctx context.Context, userId int, timeRange TimeRange) (*Schedule, er
 		return nil, eb.Code(errs.InvalidArgument).Cause(err).Msg("schedule already exists within this end timestamp").Err()
 	}
 
-	schedule := Schedule{UserId: userId, Time: TimeRange{}}
+	// check for user
+	user, err := users.Get(ctx, userId)
+	if err != nil {
+		return nil, eb.Code(errs.NotFound).Msg("user not found").Err()
+	}
+
+	schedule := Schedule{User: *user, Time: TimeRange{}}
 	err = sqldb.QueryRow(ctx, `
 		INSERT INTO schedules (user_id, start_time, end_time)
 		VALUES ($1, $2, $3)
@@ -146,10 +153,16 @@ func RowToSchedule(ctx context.Context, row interface {
 	Scan(dest ...interface{}) error
 }) (*Schedule, error) {
 	var schedule = &Schedule{Time: TimeRange{}}
-	err := row.Scan(&schedule.Id, &schedule.UserId, &schedule.Time.Start, &schedule.Time.End)
+	var userId int
+	err := row.Scan(&schedule.Id, &userId, &schedule.Time.Start, &schedule.Time.End)
 	if err != nil {
 		return nil, err
 	}
+	user, err := users.Get(ctx, userId)
+	if err != nil {
+		return nil, err
+	}
+	schedule.User = *user
 	return schedule, nil
 }
 

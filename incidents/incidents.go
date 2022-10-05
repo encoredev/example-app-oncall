@@ -160,8 +160,7 @@ func Create(ctx context.Context, params *CreateParams) (*Incident, error) {
 
 	incident := Incident{}
 	if schedule != nil {
-		assignee, _ := users.Get(ctx, schedule.UserId)
-		incident.Assignee = assignee
+		incident.Assignee = &schedule.User
 	}
 
 	var row *sqldb.Row
@@ -171,7 +170,7 @@ func Create(ctx context.Context, params *CreateParams) (*Incident, error) {
 			INSERT INTO incidents (assigned_user_id, body)
 			VALUES ($1, $2)
 			RETURNING id, body, created_at
-		`, &schedule.UserId, params.Body)
+		`, &schedule.User.Id, params.Body)
 	} else {
 		// Nobody is on-call
 		row = sqldb.QueryRow(ctx, `
@@ -286,11 +285,11 @@ func AssignUnassignedIncidents(ctx context.Context) error {
 			continue // this incident has already been assigned
 		}
 
-		_, err := Assign(ctx, incident.Id, &AssignParams{UserId: schedule.UserId})
+		_, err := Assign(ctx, incident.Id, &AssignParams{UserId: schedule.User.Id})
 		if err == nil {
-			rlog.Info("OK assigned unassigned incident", "incident", incident, "userId", schedule.UserId)
+			rlog.Info("OK assigned unassigned incident", "incident", incident, "user", schedule.User)
 		} else {
-			rlog.Error("FAIL to assign unassigned incident", "incident", incident, "userId", schedule.UserId, "err", err)
+			rlog.Error("FAIL to assign unassigned incident", "incident", incident, "user", schedule.User, "err", err)
 			return err
 		}
 	}
