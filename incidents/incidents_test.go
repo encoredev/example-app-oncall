@@ -10,45 +10,26 @@ import (
 	"encore.app/users"
 )
 
-func TestIncidents(t *testing.T) {
-	t.Run("group", func(t *testing.T) {
-		var wideTimeRange = schedules.TimeRange{
-			Start: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
-			End:   time.Date(2099, 12, 31, 23, 59, 0, 0, time.UTC),
-		}
+func TestCreateIncidents(t *testing.T) {
+	user := createUser(t)
+	incident := createIncident(t, "Incident #3. This should not be assigned!")
 
-		t.Run("empty the schedule", func(t *testing.T) {
-			if _, err := schedules.DeleteByTimeRange(context.Background(), wideTimeRange); err != nil {
-				t.Fatal(err)
-			}
-		})
+	incidentEquals(t, incident, Incident{
+		Body:           "Incident #3. This should not be assigned!",
+		Assignee:       nil,
+		Acknowledged:   false,
+		AcknowledgedAt: nil,
+	})
 
-		t.Run("with no assignee", incidentMatches(Incident{
-			Body:           "The first incident. This shouldn't be assigned!",
-			Assignee:       nil,
-			Acknowledged:   false,
-			AcknowledgedAt: nil,
-		}))
+	duration := time.Duration(1000 * 1000)
+	createSchedule(t, user, time.Now().Add(duration))
 
-		t.Run("empty the schedule", func(t *testing.T) {
-			if _, err := schedules.DeleteByTimeRange(context.Background(), wideTimeRange); err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		t.Run("with assignee", func(t *testing.T) {
-			var user = createUser(t)
-			var _ = createSchedule(t, user)
-
-			time.Sleep(time.Duration(100 * 1000 * 1000))
-
-			incidentMatches(Incident{
-				Body:           "The second incident. This should be assigned!",
-				Assignee:       user,
-				Acknowledged:   false,
-				AcknowledgedAt: nil,
-			})
-		})
+	incident2 := createIncident(t, "Incident #4. This should be assigned to user #2!")
+	incidentEquals(t, incident2, Incident{
+		Body:           "Incident #4. This should be assigned to user #2!",
+		Assignee:       user,
+		Acknowledged:   false,
+		AcknowledgedAt: nil,
 	})
 }
 
@@ -64,10 +45,10 @@ func createUser(t *testing.T) *users.User {
 	return user
 }
 
-func createSchedule(t *testing.T, user *users.User) *schedules.Schedule {
+func createSchedule(t *testing.T, user *users.User, startTime time.Time) *schedules.Schedule {
 	schedule, err := schedules.Create(context.Background(), user.Id, schedules.TimeRange{
-		Start: time.Now().Add(time.Duration(100 * 1000 * 1000)),
-		End:   time.Now().Add(time.Duration(1000 * 1000 * 1000)),
+		Start: startTime.UTC(),
+		End:   startTime.UTC().Add(time.Duration(5000 * 1000 * 1000)),
 	})
 	if err != nil {
 		t.Fatal("failed to create schedule", err)
@@ -75,26 +56,28 @@ func createSchedule(t *testing.T, user *users.User) *schedules.Schedule {
 	return schedule
 }
 
-func incidentMatches(expected Incident) func(t *testing.T) {
-	return func(t *testing.T) {
-		incident, err := Create(context.Background(), &CreateParams{Body: expected.Body})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if incident.Body != expected.Body {
-			t.Errorf("response incident.Body does not match provided Body. got %q, want %q", incident.Body, expected.Body)
-		}
+func createIncident(t *testing.T, body string) *Incident {
+	incident, err := Create(context.Background(), &CreateParams{Body: body})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return incident
+}
 
-		if !reflect.DeepEqual(incident.Assignee, expected.Assignee) {
-			t.Errorf("incident.Assignee does not match. got %q, want %q", incident.Assignee, expected.Assignee)
-		}
+func incidentEquals(t *testing.T, actual *Incident, expected Incident) {
+	if actual.Body != expected.Body {
+		t.Errorf("Body does not match provided value. got %q, want %q", actual.Body, expected.Body)
+	}
 
-		if incident.Acknowledged != expected.Acknowledged {
-			t.Errorf("incident.Acknowledged does not match. got %q, want %q", incident.Acknowledged, expected.Acknowledged)
-		}
+	if !reflect.DeepEqual(actual.Assignee, expected.Assignee) {
+		t.Errorf("Assignee does not match provided value. got %q, want %q", actual.Assignee, expected.Assignee)
+	}
 
-		if incident.AcknowledgedAt != expected.AcknowledgedAt {
-			t.Errorf("incident.AcknowledgedAt does not match. got %q, want %q", incident.AcknowledgedAt, expected.AcknowledgedAt)
-		}
+	if actual.Acknowledged != expected.Acknowledged {
+		t.Errorf("Acknowledged does not match provided value. got %q, want %q", actual.Acknowledged, expected.Acknowledged)
+	}
+
+	if actual.AcknowledgedAt != expected.AcknowledgedAt {
+		t.Errorf("AcknowledgedAt does not match provided value. got %q, want %q", actual.AcknowledgedAt, expected.AcknowledgedAt)
 	}
 }

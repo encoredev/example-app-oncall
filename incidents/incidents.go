@@ -40,9 +40,34 @@ func List(ctx context.Context) (*Incidents, error) {
 	return RowsToIncidents(ctx, rows)
 }
 
+//encore:api public method=GET path=/incidents/:id
+func GetById(ctx context.Context, id int) (*Incident, error) {
+	eb := errs.B().Meta("id", id)
+	rows, err := sqldb.Query(ctx, `
+		SELECT id, assigned_user_id, body, created_at, acknowledged_at
+		FROM incidents
+		WHERE acknowledged_at IS NULL
+		  AND id = $1
+	`, id)
+	if err != nil {
+		return nil, err
+	}
+
+	incidents, err := RowsToIncidents(ctx, rows)
+	if err != nil {
+		return nil, err
+	}
+	if incidents.Items == nil {
+		return nil, eb.Code(errs.NotFound).Msg("no incident found").Err()
+	}
+
+	incident := &incidents.Items[0]
+	return incident, err
+}
+
 //encore:api public method=PUT path=/incidents/:id/assign
 func Assign(ctx context.Context, id int, params *AssignParams) (*Incident, error) {
-	eb := errs.B().Meta("params", params)
+	eb := errs.B().Meta("id", id, "params", params)
 	rows, err := sqldb.Query(ctx, `
 		UPDATE incidents
 		SET assigned_user_id = $1
@@ -135,7 +160,8 @@ func Create(ctx context.Context, params *CreateParams) (*Incident, error) {
 
 	incident := Incident{}
 	if schedule != nil {
-		incident.Assignee = &schedule.User
+		assignee, _ := users.Get(ctx, schedule.UserId)
+		incident.Assignee = assignee
 	}
 
 	var row *sqldb.Row
@@ -145,7 +171,7 @@ func Create(ctx context.Context, params *CreateParams) (*Incident, error) {
 			INSERT INTO incidents (assigned_user_id, body)
 			VALUES ($1, $2)
 			RETURNING id, body, created_at
-		`, &schedule.User.Id, params.Body)
+		`, &schedule.UserId, params.Body)
 	} else {
 		// Nobody is on-call
 		row = sqldb.QueryRow(ctx, `
@@ -260,11 +286,11 @@ func AssignUnassignedIncidents(ctx context.Context) error {
 			continue // this incident has already been assigned
 		}
 
-		_, err := Assign(ctx, incident.Id, &AssignParams{UserId: schedule.User.Id})
+		_, err := Assign(ctx, incident.Id, &AssignParams{UserId: schedule.UserId})
 		if err == nil {
-			rlog.Info("OK assigned unassigned incident", "incident", incident, "user", schedule.User)
+			rlog.Info("OK assigned unassigned incident", "incident", incident, "userId", schedule.UserId)
 		} else {
-			rlog.Error("FAIL to assign unassigned incident", "incident", incident, "user", schedule.User, "err", err)
+			rlog.Error("FAIL to assign unassigned incident", "incident", incident, "userId", schedule.UserId, "err", err)
 			return err
 		}
 	}

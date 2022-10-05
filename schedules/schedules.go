@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"encore.app/users"
 	"encore.dev/beta/errs"
 	"encore.dev/storage/sqldb"
 )
@@ -46,12 +45,7 @@ func Create(ctx context.Context, userId int, timeRange TimeRange) (*Schedule, er
 		return nil, eb.Code(errs.InvalidArgument).Cause(err).Msg("schedule already exists within this end timestamp").Err()
 	}
 
-	user, err := users.Get(ctx, userId)
-	if err != nil {
-		return nil, eb.Code(errs.Unavailable).Cause(err).Msg("get user").Err()
-	}
-
-	schedule := Schedule{User: *user, Time: TimeRange{}}
+	schedule := Schedule{UserId: userId, Time: TimeRange{}}
 	err = sqldb.QueryRow(ctx, `
 		INSERT INTO schedules (user_id, start_time, end_time)
 		VALUES ($1, $2, $3)
@@ -81,7 +75,7 @@ func ScheduledAt(ctx context.Context, timestamp string) (*Schedule, error) {
 }
 
 func Scheduled(ctx context.Context, timestamp time.Time) (*Schedule, error) {
-	eb := errs.B().Meta("timestamp", timestamp)
+	eb := errs.B().Meta("timestamp", timestamp.String())
 	schedule, err := RowToSchedule(ctx, sqldb.QueryRow(ctx, `
 		SELECT id, user_id, start_time, end_time
 		FROM schedules
@@ -147,30 +141,21 @@ func DeleteByTimeRange(ctx context.Context, timeRange TimeRange) (*Schedules, er
 	return schedules, err
 }
 
-// Helper function from Row to Schedule
+// RowToSchedule Helper function from Row to Schedule
 func RowToSchedule(ctx context.Context, row interface {
 	Scan(dest ...interface{}) error
 }) (*Schedule, error) {
 	var schedule = &Schedule{Time: TimeRange{}}
-	var userId int
-
-	err := row.Scan(&schedule.Id, &userId, &schedule.Time.Start, &schedule.Time.End)
+	err := row.Scan(&schedule.Id, &schedule.UserId, &schedule.Time.Start, &schedule.Time.End)
 	if err != nil {
 		return nil, err
 	}
-
-	user, err := users.Get(ctx, userId)
-	if err != nil {
-		return nil, err
-	}
-
-	schedule.User = *user
 	return schedule, nil
 }
 
-// Helper function for making sure start and end times are valid
+// VerifyTimeRange Helper function for making sure start and end times are valid
 func VerifyTimeRange(timeRange TimeRange) error {
-	eb := errs.B().Meta("timeRange", timeRange)
+	eb := errs.B().Meta("start", timeRange.Start.String(), "end", timeRange.End.String())
 	if timeRange.Start.Equal(timeRange.End) {
 		return eb.Code(errs.InvalidArgument).Msg("start timestamp cannot be equal to end timestamp").Err()
 	}
