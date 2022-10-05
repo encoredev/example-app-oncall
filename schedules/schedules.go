@@ -15,9 +15,9 @@ type Schedules struct {
 }
 
 type Schedule struct {
-	Id   int32
-	User users.User
-	Time TimeRange
+	Id     int
+	UserId int
+	Time   TimeRange
 }
 
 type TimeRange struct {
@@ -26,8 +26,8 @@ type TimeRange struct {
 }
 
 //encore:api public method=POST path=/users/:userId/schedules
-func Create(ctx context.Context, userId int32, timeRange TimeRange) (*Schedule, error) {
-	eb := errs.B().Meta("userID", userId, "start", timeRange.Start, "end", timeRange.End)
+func Create(ctx context.Context, userId int, timeRange TimeRange) (*Schedule, error) {
+	eb := errs.B().Meta("userID", userId, "start", timeRange.Start.String(), "end", timeRange.End.String())
 	if timeRange.Start.Before(time.Now()) {
 		return nil, eb.Code(errs.InvalidArgument).Msg("start timestamp in the past").Err()
 	}
@@ -152,7 +152,7 @@ func RowToSchedule(ctx context.Context, row interface {
 	Scan(dest ...interface{}) error
 }) (*Schedule, error) {
 	var schedule = &Schedule{Time: TimeRange{}}
-	var userId int32
+	var userId int
 
 	err := row.Scan(&schedule.Id, &userId, &schedule.Time.Start, &schedule.Time.End)
 	if err != nil {

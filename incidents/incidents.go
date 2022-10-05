@@ -19,7 +19,7 @@ type Incidents struct {
 }
 
 type Incident struct {
-	Id             int32
+	Id             int
 	Body           string
 	CreatedAt      time.Time
 	Acknowledged   bool
@@ -41,7 +41,7 @@ func List(ctx context.Context) (*Incidents, error) {
 }
 
 //encore:api public method=PUT path=/incidents/:id/assign
-func Assign(ctx context.Context, id int32, params *AssignParams) (*Incident, error) {
+func Assign(ctx context.Context, id int, params *AssignParams) (*Incident, error) {
 	eb := errs.B().Meta("params", params)
 	rows, err := sqldb.Query(ctx, `
 		UPDATE incidents
@@ -71,11 +71,11 @@ func Assign(ctx context.Context, id int32, params *AssignParams) (*Incident, err
 }
 
 type AssignParams struct {
-	UserId int32
+	UserId int
 }
 
 //encore:api public method=PUT path=/incidents/:id/acknowledge
-func Acknowledge(ctx context.Context, id int32) (*Incident, error) {
+func Acknowledge(ctx context.Context, id int) (*Incident, error) {
 	eb := errs.B().Meta("incidentId", id)
 	rows, err := sqldb.Query(ctx, `
 		UPDATE incidents
@@ -183,7 +183,7 @@ func RowsToIncidents(ctx context.Context, rows *sqldb.Rows) (*Incidents, error) 
 	var incidents []Incident
 	for rows.Next() {
 		var incident = Incident{}
-		var assignedUserId *int32
+		var assignedUserId *int
 		if err := rows.Scan(&incident.Id, &assignedUserId, &incident.Body, &incident.CreatedAt, &incident.AcknowledgedAt); err != nil {
 			return nil, eb.Code(errs.Unknown).Msgf("could not scan: %v", err).Err()
 		}

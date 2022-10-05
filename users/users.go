@@ -12,7 +12,7 @@ type Users struct {
 }
 
 type User struct {
-	Id          int32
+	Id          int
 	FirstName   string
 	LastName    string
 	SlackHandle string
@@ -54,7 +54,7 @@ type CreateParams struct {
 }
 
 //encore:api public method=GET path=/users/:id
-func Get(ctx context.Context, id int32) (*User, error) {
+func Get(ctx context.Context, id int) (*User, error) {
 	eb := errs.B().Meta("userId", id)
 
 	user := User{}
