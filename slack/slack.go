@@ -15,12 +15,16 @@ type NotifyParams struct {
 
 //encore:api private
 func Notify(ctx context.Context, p *NotifyParams) error {
+	return NotifyRaw(ctx, secrets.SlackWebhookURL, p)
+}
+
+func NotifyRaw(ctx context.Context, slackWebhookURL string, p *NotifyParams) error {
 	eb := errs.B()
 	reqBody, err := json.Marshal(p)
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequestWithContext(ctx, "POST", secrets.SlackWebhookURL, bytes.NewReader(reqBody))
+	req, err := http.NewRequestWithContext(ctx, "POST", slackWebhookURL, bytes.NewReader(reqBody))
 	if err != nil {
 		return err
 	}
